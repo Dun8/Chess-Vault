@@ -1,0 +1,24 @@
+{
+  "type": "module",
+  "name": "obsidian-sample-plugin",
+  "version": "1.0.0",
+  "description": "Оболочка для твоего плагина",
+  "main": "main.js",
+  "scripts": {
+    "dev": "node esbuild.config.mjs",
+    "build": "tsc -noEmit -skipLibCheck && node esbuild.config.mjs production"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^20.10.5",
+    "@typescript-eslint/eslint-plugin": "^6.15.0",
+    "@typescript-eslint/parser": "^6.15.0",
+    "builtin-modules": "^3.3.0",
+    "esbuild": "0.19.11",
+    "obsidian": "latest",
+    "tslib": "2.6.2",
+    "typescript": "5.3.3"
+  }
+}
