@@ -292,7 +292,7 @@ function createCollapsible(containerEl: HTMLElement, title: string, buildContent
     });
 }
 
-//Настройки
+// Настройки
 
 class MySettingTab extends PluginSettingTab {
     plugin: MyPlugin;

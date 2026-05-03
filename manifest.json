@@ -1,10 +1,9 @@
 {
-  "id": "obsidian-chess-vault",
-  "name": "Obsidian Chess Vault",
+  "id": "chess-vault",
+  "name": "Chess Vault",
+  "description": "Sync your Lichess games!",
+  "author": "Dun",
   "version": "1.0.0",
   "minAppVersion": "0.15.0",
-  "description": "Sync your Lichess games into Obsidian",
-  "author": "Dun",
-  "authorUrl": "https://github.com/Dun8",
   "isDesktopOnly": false
 }
