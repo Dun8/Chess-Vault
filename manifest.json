@@ -3,9 +3,8 @@
   "name": "Obsidian Chess Vault",
   "version": "1.0.0",
   "minAppVersion": "0.15.0",
-  "description": "-",
-  "author": "Dun4ik",
-  "authorUrl": "https://твой-сайт",
-  "fundingUrl": "https://твой-бусти",
+  "description": "Sync your Lichess games into Obsidian",
+  "author": "Dun",
+  "authorUrl": "https://github.com/Dun8",
   "isDesktopOnly": false
 }

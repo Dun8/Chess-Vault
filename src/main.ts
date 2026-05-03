@@ -311,7 +311,7 @@ class MySettingTab extends PluginSettingTab {
             .setDesc("Твой логин на lichess.org")
             .addText((text) =>
                 text
-                    .setPlaceholder("например: Dunip")
+                    .setPlaceholder("например: MagnusCarlsen")
                     .setValue(this.plugin.settings.nick)
                     .onChange(async (value) => {
                         this.plugin.settings.nick = value;
