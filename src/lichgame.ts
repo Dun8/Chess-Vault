@@ -1,3 +1,5 @@
+import { requestUrl } from "obsidian";
+
 export interface LichessGame {
     id: string;
     players: {
@@ -9,21 +11,17 @@ export interface LichessGame {
 }
 
 export default async function import_games(nick: string, since_t: number, until_t: number): Promise<LichessGame[]> {
-    const res = await fetch(
-        `https://lichess.org/api/games/user/${nick}?since=${since_t}&until=${until_t}`,
-        {
-            headers: {
-                Accept: "application/x-ndjson",
-            },
-        }
-    );
+    const res = await requestUrl({
+        url: `https://lichess.org/api/games/user/${nick}?since=${since_t}&until=${until_t}`,
+        headers: {
+            Accept: "application/x-ndjson",
+        },
+    });
 
-    const text: string = await res.text();
+    const text: string = res.text;
 
     if (!text.trim()) return [];
 
     const games: LichessGame[] = text.trim().split("\n").map((line) => JSON.parse(line));
     return games;
 }
-
-

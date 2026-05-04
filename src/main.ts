@@ -12,7 +12,7 @@ import {obrab_date, obrab_id, obrab_ratingDiff, calcStat} from "./obrab_games.js
 
 // Настройки
 
-interface MyPluginSettings {
+interface ChessVaultSettings {
     nick: string;
     targetFilePath: string;
     last_update: number;
@@ -28,7 +28,7 @@ interface MyPluginSettings {
     fm_show_colors: boolean;
 }
 
-const DEFAULT_SETTINGS: MyPluginSettings = {
+const DEFAULT_SETTINGS: ChessVaultSettings = {
     nick: "",
     targetFilePath: "",
     last_update: Date.now() - 30 * 24 * 60 * 60 * 1000,
@@ -46,16 +46,16 @@ const DEFAULT_SETTINGS: MyPluginSettings = {
 
 // Основной класс
 
-export default class MyPlugin extends Plugin {
-    settings: MyPluginSettings;
+export default class ChessVaultPlugin extends Plugin {
+    settings: ChessVaultSettings;
 
     async onload() {
         await this.loadSettings();
-        this.addSettingTab(new MySettingTab(this.app, this));
+        this.addSettingTab(new ChessVaultSettingTab(this.app, this));
 
         this.addCommand({
             id: "sync-chess-games",
-            name: "Синхронизировать партии с Lichess",
+            name: "Sync games from Lichess",
             callback: () => this.syncGames(),
         });
     }
@@ -87,30 +87,30 @@ export default class MyPlugin extends Plugin {
         let games: LichessGame[] = [];
 
         if (this.settings.nick == "") {
-            new Notice('Впишите свой ник в настройки!');
+            new Notice("Enter your Lichess username in settings.");
             return;
         }
         if (this.settings.fileMode === "single" && this.settings.targetFilePath == "") {
-            new Notice('Впишите путь куда сохранять партии!');
+            new Notice("Enter the target file path in settings.");
             return;
         }
         if (this.settings.fileMode === "daily" && this.settings.dailyFolder == "") {
-            new Notice('Впишите папку для ежедневных файлов!');
+            new Notice("Enter the daily folder path in settings.");
             return;
         }
 
         games = await import_games(this.settings.nick, this.settings.last_update, Date.now())
 
         if (games.length === 0) {
-            new Notice('Новых партий нет!');
+            new Notice("No new games found.");
             this.settings.last_update = Date.now();
             await this.saveSettings();
             return;
         }
 
-        let game_id: string[] = obrab_id(games);
-        let game_date: string[] = obrab_date(games);
-        let game_ratingDiff: number[] = obrab_ratingDiff(this.settings.nick, games);
+        const game_id: string[] = obrab_id(games);
+        const game_date: string[] = obrab_date(games);
+        const game_ratingDiff: number[] = obrab_ratingDiff(this.settings.nick, games);
 
         if (this.settings.fileMode == "daily") {
 
@@ -152,7 +152,7 @@ export default class MyPlugin extends Plugin {
                         const dt = new Date(game.createdAt);
                         prefix += `\n> 📅 ${dt.toLocaleString()}\n`;
                     }
-                    if (this.settings.show_ratingDiff) prefix += `\n> 📈 RatingDiff: \`${ratingDiff}\`\n`;
+                    if (this.settings.show_ratingDiff) prefix += `\n> 📈 Rating diff: \`${ratingDiff}\`\n`;
 
                     return `\n${prefix}<iframe src="https://lichess.org/embed/game/${game.id}?theme=auto&bg=auto" width=600 height=397 frameborder=0></iframe>\n`;
                 }).join("");
@@ -180,7 +180,7 @@ export default class MyPlugin extends Plugin {
             if (abstract instanceof TFile) {
                 File = abstract;
             } else if (abstract !== null) {
-                new Notice("Указанный путь — это папка, а не файл.");
+                new Notice("The specified path is a folder, not a file.");
                 return;
             }
 
@@ -195,7 +195,7 @@ export default class MyPlugin extends Plugin {
             for (let i = 0; i < game_id.length; i++) {
                 let prefix = "";
                 if (this.settings.show_date) prefix += `\n> 📅 ${game_date[i]}\n`;
-                if (this.settings.show_ratingDiff) prefix += `\n> 📈 RatingDiff: \`${game_ratingDiff[i]}\`\n`;
+                if (this.settings.show_ratingDiff) prefix += `\n> 📈 Rating diff: \`${game_ratingDiff[i]}\`\n`;
 
                 const block = `\n${prefix}<iframe src="https://lichess.org/embed/game/${game_id[i]}?theme=auto&bg=auto" width=600 height=397 frameborder=0></iframe>\n`;
                 const existing = await this.app.vault.read(File);
@@ -205,11 +205,11 @@ export default class MyPlugin extends Plugin {
 
         this.settings.last_update = Date.now();
         await this.saveSettings();
-        new Notice(`Добавлено ${games.length} партий.`);
+        new Notice(`Added ${games.length} games.`);
     }
 }
 
-//Предложение выбора файлов/папок в настройках
+// Автодополнение файлов
 
 class FileSuggest extends AbstractInputSuggest<TFile> {
     constructor(app: App, private inputEl: HTMLInputElement) {
@@ -239,6 +239,8 @@ class FileSuggest extends AbstractInputSuggest<TFile> {
     }
 }
 
+// Автодополнение папок
+
 class FolderSuggest extends AbstractInputSuggest<TFolder> {
     constructor(app: App, private inputEl: HTMLInputElement) {
         super(app, inputEl);
@@ -256,7 +258,7 @@ class FolderSuggest extends AbstractInputSuggest<TFolder> {
 
     renderSuggestion(file: TFolder, el: HTMLElement): void {
         el.createEl("div", { text: file.name });
-        if (file.path === "/") {
+        if (file.path !== "/") {
             el.createEl("small", { text: file.path, cls: "suggestion-note" });
         }
     }
@@ -270,34 +272,32 @@ class FolderSuggest extends AbstractInputSuggest<TFolder> {
 }
 
 // Разворачивающаяся секция
+
 function createCollapsible(containerEl: HTMLElement, title: string, buildContent: (el: HTMLElement) => void): void {
     const header = containerEl.createEl("div", { cls: "chess-collapsible-header" });
-    header.style.cssText = "display:flex; align-items:center; cursor:pointer; padding: 8px 0; font-weight:600; border-bottom: 1px solid var(--background-modifier-border);";
 
-    const arrow = header.createEl("span");
-    arrow.style.cssText = "margin-right: 8px; transition: transform 0.2s;";
+    const arrow = header.createEl("span", { cls: "chess-collapsible-arrow" });
     arrow.setText("▶");
 
     header.createEl("span", { text: title });
 
-    const content = containerEl.createEl("div");
-    content.style.cssText = "display:none; padding-left: 12px;";
+    const content = containerEl.createEl("div", { cls: "chess-collapsible-content" });
 
     buildContent(content);
 
     header.addEventListener("click", () => {
-        const isOpen = content.style.display !== "none";
-        content.style.display = isOpen ? "none" : "block";
-        arrow.style.transform = isOpen ? "" : "rotate(90deg)";
+        const isOpen = content.classList.contains("open");
+        content.toggleClass("open", !isOpen);
+        arrow.toggleClass("open", !isOpen);
     });
 }
 
-// Настройки
+// Вкладка настроек
 
-class MySettingTab extends PluginSettingTab {
-    plugin: MyPlugin;
+class ChessVaultSettingTab extends PluginSettingTab {
+    plugin: ChessVaultPlugin;
 
-    constructor(app: App, plugin: MyPlugin) {
+    constructor(app: App, plugin: ChessVaultPlugin) {
         super(app, plugin);
         this.plugin = plugin;
     }
@@ -307,11 +307,11 @@ class MySettingTab extends PluginSettingTab {
         containerEl.empty();
 
         new Setting(containerEl)
-            .setName("Никнейм на Lichess")
-            .setDesc("Твой логин на lichess.org")
+            .setName("Lichess username")
+            .setDesc("Your login on lichess.org")
             .addText((text) =>
                 text
-                    .setPlaceholder("например: MagnusCarlsen")
+                    .setPlaceholder("e.g. MagnusCarlsen")
                     .setValue(this.plugin.settings.nick)
                     .onChange(async (value) => {
                         this.plugin.settings.nick = value;
@@ -320,10 +320,11 @@ class MySettingTab extends PluginSettingTab {
             );
 
         new Setting(containerEl)
-            .setName("Вид сохранения")
+            .setName("Save mode")
+            .setDesc("Save all games to one file or to a separate file for each day.")
             .addDropdown(drop => drop
-                .addOption("single", "В один файл")
-                .addOption("daily", "В файлы по дням")
+                .addOption("single", "Single file")
+                .addOption("daily", "Daily files")
                 .setValue(this.plugin.settings.fileMode)
                 .onChange(async (value) => {
                     this.plugin.settings.fileMode = value as "single" | "daily";
@@ -334,11 +335,11 @@ class MySettingTab extends PluginSettingTab {
 
         if (this.plugin.settings.fileMode === "single") {
             new Setting(containerEl)
-                .setName("Файл для партий")
-                .setDesc("Файл, в который будут добавляться партии.")
+                .setName("Target file")
+                .setDesc("File where games will be appended.")
                 .addSearch((search) => {
                     search
-                        .setPlaceholder("Введите имя или путь...")
+                        .setPlaceholder("Enter name or path...")
                         .setValue(this.plugin.settings.targetFilePath)
                         .onChange(async (value) => {
                             this.plugin.settings.targetFilePath = value;
@@ -348,11 +349,11 @@ class MySettingTab extends PluginSettingTab {
                 });
         } else {
             new Setting(containerEl)
-                .setName("Папка для партий")
-                .setDesc("Папка, в которую будут добавляться файлы с ежедневными партиями.")
+                .setName("Daily folder")
+                .setDesc("Folder where daily files will be created.")
                 .addSearch((search) => {
                     search
-                        .setPlaceholder("Введите имя или путь...")
+                        .setPlaceholder("Enter name or path...")
                         .setValue(this.plugin.settings.dailyFolder)
                         .onChange(async (value) => {
                             this.plugin.settings.dailyFolder = value;
@@ -362,11 +363,9 @@ class MySettingTab extends PluginSettingTab {
                 });
         }
 
-        // Секция
-
-        createCollapsible(containerEl, "⚙️ Что показывать перед каждой партией", (el) => {
+        createCollapsible(containerEl, "⚙️ Show before each game", (el) => {
             new Setting(el)
-                .setName("Дату партии")
+                .setName("Game date")
                 .addToggle(toggle => toggle
                     .setValue(this.plugin.settings.show_date)
                     .onChange(async (value) => {
@@ -376,7 +375,7 @@ class MySettingTab extends PluginSettingTab {
                 );
 
             new Setting(el)
-                .setName("Изменение рейтинга")
+                .setName("Rating diff")
                 .addToggle(toggle => toggle
                     .setValue(this.plugin.settings.show_ratingDiff)
                     .onChange(async (value) => {
@@ -387,9 +386,9 @@ class MySettingTab extends PluginSettingTab {
         });
 
         if (this.plugin.settings.fileMode === "daily") {
-            createCollapsible(containerEl, "📊 Свойства файла (frontmatter)", (el) => {
+            createCollapsible(containerEl, "📊 File properties (frontmatter)", (el) => {
                 new Setting(el)
-                    .setName("Количество партий")
+                    .setName("Number of games")
                     .addToggle(toggle => toggle
                         .setValue(this.plugin.settings.fm_show_games)
                         .onChange(async (value) => {
@@ -399,7 +398,7 @@ class MySettingTab extends PluginSettingTab {
                     );
 
                 new Setting(el)
-                    .setName("Победы")
+                    .setName("Wins")
                     .addToggle(toggle => toggle
                         .setValue(this.plugin.settings.fm_show_wins)
                         .onChange(async (value) => {
@@ -409,7 +408,7 @@ class MySettingTab extends PluginSettingTab {
                     );
 
                 new Setting(el)
-                    .setName("Поражения")
+                    .setName("Defeats")
                     .addToggle(toggle => toggle
                         .setValue(this.plugin.settings.fm_show_defeats)
                         .onChange(async (value) => {
@@ -419,7 +418,7 @@ class MySettingTab extends PluginSettingTab {
                     );
 
                 new Setting(el)
-                    .setName("Ничьи")
+                    .setName("Draws")
                     .addToggle(toggle => toggle
                         .setValue(this.plugin.settings.fm_show_draws)
                         .onChange(async (value) => {
@@ -429,7 +428,7 @@ class MySettingTab extends PluginSettingTab {
                     );
 
                 new Setting(el)
-                    .setName("Процент побед")
+                    .setName("Win rate")
                     .addToggle(toggle => toggle
                         .setValue(this.plugin.settings.fm_show_win_rate)
                         .onChange(async (value) => {
@@ -439,7 +438,7 @@ class MySettingTab extends PluginSettingTab {
                     );
 
                 new Setting(el)
-                    .setName("Партии за белых / чёрных")
+                    .setName("Games as white / black")
                     .addToggle(toggle => toggle
                         .setValue(this.plugin.settings.fm_show_colors)
                         .onChange(async (value) => {
@@ -450,40 +449,38 @@ class MySettingTab extends PluginSettingTab {
             });
         }
 
-        // Синхронизация
-
         const lastSync = this.plugin.settings.last_update;
-        const lastSyncText = lastSync > 0 ? new Date(lastSync).toLocaleString() : "ещё не было";
+        const lastSyncText = lastSync > 0 ? new Date(lastSync).toLocaleString() : "Never";
 
         new Setting(containerEl)
-            .setName("Последняя синхронизация")
+            .setName("Last sync")
             .setDesc(lastSyncText)
             .addButton((btn) =>
                 btn
-                    .setButtonText("Сбросить (30 дней)")
-                    .setTooltip("Загрузит партии за последние 30 дней")
+                    .setButtonText("Reset (30 days)")
+                    .setTooltip("Will load games from the last 30 days")
                     .onClick(async () => {
                         this.plugin.settings.last_update = Date.now() - 30 * 24 * 60 * 60 * 1000;
                         await this.plugin.saveSettings();
                         this.display();
-                        new Notice("Дата сброшена на 30 дней назад.");
+                        new Notice("Reset to 30 days ago.");
                     })
             )
             .addButton((btn) =>
                 btn
-                    .setButtonText("Сбросить (всё время)")
+                    .setButtonText("Reset (all time)")
                     .setWarning()
-                    .setTooltip("⚠️ Осторожно: если партий много — возможна ошибка!")
+                    .setTooltip("Warning: may cause errors if you have many games!")
                     .onClick(async () => {
                         this.plugin.settings.last_update = 0;
                         await this.plugin.saveSettings();
                         this.display();
-                        new Notice("⚠️ Будут загружены все партии за всё время. Это может вызвать ошибку если их очень много.");
+                        new Notice("Warning: all games will be loaded. This may cause errors if you have many games.");
                     })
             );
 
         containerEl.createEl("p", {
-            text: "⚠️ Импорт большого количества партий (1000+) может привести к ошибке из-за ограничений Lichess API и размера файла.",
+            text: "⚠️ Importing a large number of games (1000+) may cause errors due to Lichess API limits.",
             cls: "setting-item-description"
         });
     }
