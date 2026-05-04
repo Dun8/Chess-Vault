@@ -1,32 +1,34 @@
-# Obsidian Chess Vault
+# Chess Vault
 
-Плагин для Obsidian, который синхронизирует твои партии с [Lichess](https://lichess.org) прямо в хранилище. Партии сохраняются как встроенные доски — можно смотреть и разбирать прямо в заметках.
-
----
-
-## Возможности
-
-- Синхронизация партий с Lichess по никнейму
-- Два режима сохранения: в один файл или в отдельный файл на каждый день
-- Инкрементальная синхронизация — каждый раз загружаются только новые партии
-- Опциональный префикс перед каждой партией: дата и/или изменение рейтинга
-- Frontmatter со статистикой за день (победы, поражения, ничьи, процент побед и т.д.) — только в режиме по дням
-- Автоматическое создание папок и файлов
-- Настройки с разворачивающимися секциями
+A plugin for Obsidian that syncs your chess games from Lichess directly into your vault. Games are saved as embedded boards — you can view and analyze them прямо inside your notes.
 
 ---
 
-## Установка
+## Features
 
-### Вручную
+* Sync games from Lichess by username
+* Two saving modes: single file or separate file per day
+* Incremental sync — only new games are fetched each time
+* Optional prefix before each game: date and/or rating change
+* Frontmatter with daily statistics (wins, losses, draws, win rate, etc.) — available in daily mode only
+* Automatic creation of folders and files
+* Settings with collapsible sections
 
-1. Скачай или склонируй репозиторий
-2. Установи зависимости и собери плагин:
+---
+
+## Installation
+
+### Manual
+
+1. Download or clone the repository
+2. Install dependencies and build the plugin:
+
    ```bash
    npm install
    npm run build
    ```
-3. Скопируй три файла в папку плагина внутри своего vault:
+3. Copy the following three files into your vault’s plugin folder:
+
    ```
    vault/
    └── .obsidian/
@@ -36,48 +38,51 @@
                ├── manifest.json
                └── data.json
    ```
-4. В Obsidian: **Настройки → Community plugins → включи тумблер** рядом с Obsidian Chess Vault
+4. In Obsidian: **Settings → Community Plugins → enable Obsidian Chess Vault**
 
-> Папка `.obsidian` может быть скрытой — включи отображение скрытых папок в проводнике.
-
----
-
-## Использование
-
-### Настройка
-
-Открой **Настройки → Obsidian Chess Vault** и заполни:
-
-| Поле | Описание |
-|---|---|
-| Никнейм на Lichess | Твой логин на lichess.org |
-| Вид сохранения | Один файл или отдельный файл на каждый день |
-| Файл для партий | Путь к файлу (режим «один файл») |
-| Папка для партий | Папка для ежедневных файлов (режим «по дням») |
-
-### Синхронизация
-
-Открой Command Palette (`Ctrl+P` / `Cmd+P`) и выбери:
-
-```
-Синхронизировать партии с Lichess
-```
-
-Или назначь горячую клавишу в **Настройки → Hotkeys**.
+> The `.obsidian` folder may be hidden — enable hidden files in your file explorer.
 
 ---
 
-## Режимы сохранения
+## Usage
 
-### Один файл
+### Setup
 
-Все партии дописываются в конец одного выбранного файла.
+Open **Settings → Obsidian Chess Vault** and fill in:
 
-### По дням
+| Field            | Description                          |
+| ---------------- | ------------------------------------ |
+| Lichess Username | Your username on lichess.org         |
+| Save Mode        | Single file or separate file per day |
+| Games File       | Path to file (single file mode)      |
+| Games Folder     | Folder for daily files (daily mode)  |
 
-Для каждого дня создаётся отдельный файл в указанной папке. Имя файла — дата в формате `YYYY-MM-DD.md`, например `2026-04-25.md`.
+---
 
-Каждый файл начинается с frontmatter со статистикой за день:
+### Sync
+
+Open the Command Palette (`Ctrl+P` / `Cmd+P`) and select:
+
+```
+Sync games from Lichess
+```
+
+Or assign a hotkey in **Settings → Hotkeys**.
+
+---
+
+## Saving Modes
+
+### Single File
+
+All games are appended to the end of one selected file.
+
+### Daily Files
+
+A separate file is created for each day in the selected folder.
+File name format: `YYYY-MM-DD.md`, for example `2026-04-25.md`.
+
+Each file starts with frontmatter containing daily statistics:
 
 ```yaml
 ---
@@ -90,18 +95,18 @@ win_rate: 75%
 ---
 ```
 
-Набор полей настраивается в секции **📊 Свойства файла (frontmatter)**.
+The set of fields can be configured in the **📊 File Properties (frontmatter)** section.
 
 ---
 
-## Настройки префикса
+## Prefix Settings
 
-В секции **⚙️ Что показывать перед каждой партией** можно включить:
+In the section **⚙️ What to show before each game**, you can enable:
 
-- **Дату партии** — время начала партии
-- **Изменение рейтинга** — насколько изменился рейтинг после партии
+* **Game Date** — start time of the game
+* **Rating Change** — rating difference after the game
 
-Пример с обоими включёнными:
+Example with both enabled:
 
 ```
 > 📅 25.04.2026, 19:58:00
@@ -111,47 +116,48 @@ win_rate: 75%
 
 ---
 
-## Синхронизация и сброс
+## Sync & Reset
 
-По умолчанию при первом запуске загружаются партии **за последние 30 дней**.
+By default, on first launch the plugin loads games from the **last 30 days**.
 
-В настройках отображается дата последней синхронизации. Кнопки сброса:
+The settings display the date of the last sync. Reset options:
 
-- **Сбросить (30 дней)** — следующая синхронизация загрузит партии за последний месяц
-- **Сбросить (всё время)** — загрузит все партии за всё время
+* **Reset (30 days)** — next sync will load games from the past month
+* **Reset (all time)** — loads all games ever played
 
-> ⚠️ Импорт большого количества партий (1000+) может привести к ошибке из-за ограничений Lichess API и размера файла. Используй сброс «всё время» осторожно.
+> ⚠️ Importing a large number of games (1000+) may cause errors due to Lichess API limits and file size. Use "all time" reset carefully.
 
 ---
 
-## Структура проекта
+## Project Structure
 
 ```
 src/
-├── main.ts          — основной класс плагина, UI настроек
-├── lichgame.ts      — запрос к Lichess API
-└── obrab_games.ts   — обработка данных партий, статистика
-data.json            — сохранённые настройки плагина
-manifest.json        — метаданные плагина
+├── main.ts          — main plugin class, settings UI
+├── lichgame.ts      — Lichess API requests
+└── obrab_games.ts   — game processing, statistics
+data.json            — saved plugin settings
+manifest.json        — plugin metadata
 ```
 
 ---
 
-## Разработка
+## Development
 
 ```bash
-npm install       # установка зависимостей
-npm run dev       # сборка в режиме watch
-npm run build     # финальная сборка
+npm install       # install dependencies
+npm run dev       # build in watch mode
+npm run build     # production build
 ```
 
 ---
 
-## Требования
+## Requirements
 
-- Obsidian 0.15.0+
-- Node.js 18+ (для сборки)
-- Аккаунт на [lichess.org](https://lichess.org)
+* Obsidian 0.15.0+
+* Node.js 18+ (for building)
+* Lichess account
 
 ---
+
 
