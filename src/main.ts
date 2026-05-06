@@ -247,7 +247,7 @@ class FolderSuggest extends AbstractInputSuggest<TFolder> {
     }
 
     getSuggestions(inputStr: string): TFolder[] {
-        const files = this.app.vault.getAllLoadedFiles().filter(f => f instanceof TFolder) as TFolder[];
+        const files = this.app.vault.getAllLoadedFiles().filter((f): f is TFolder => f instanceof TFolder);
         const q = inputStr.toLowerCase();
         return files.filter(
             (f) =>
@@ -480,7 +480,7 @@ class ChessVaultSettingTab extends PluginSettingTab {
             );
 
         containerEl.createEl("p", {
-            text: "⚠️ Importing a large number of games (1000+) may cause errors due to Lichess API limits.",
+            text: "⚠️ importing a large number of games (1000+) may cause errors due to Lichess API limits.",
             cls: "setting-item-description"
         });
     }
