@@ -310,9 +310,9 @@ class LichessVaultSettingTab extends PluginSettingTab {
                 text
                     .setPlaceholder("e.g. MagnusCarlsen")
                     .setValue(this.plugin.settings.nick)
-                    .onChange(async (value) => {
+                    .onChange((value) => {
                         this.plugin.settings.nick = value;
-                        await this.plugin.saveSettings();
+                        void this.plugin.saveSettings();
                     })
             );
 
@@ -324,9 +324,9 @@ class LichessVaultSettingTab extends PluginSettingTab {
                     .addOption("single", "Single file")
                     .addOption("daily", "Daily files")
                     .setValue(this.plugin.settings.fileMode)
-                    .onChange(async (value) => {
+                    .onChange((value) => {
                         this.plugin.settings.fileMode = value as "single" | "daily";
-                        await this.plugin.saveSettings();
+                        void this.plugin.saveSettings();
                         this.display();
                     })
             );
@@ -339,16 +339,16 @@ class LichessVaultSettingTab extends PluginSettingTab {
                     text
                         .setPlaceholder("Enter path, e.g. Chess/games.md")
                         .setValue(this.plugin.settings.targetFilePath)
-                        .onChange(async (value) => {
+                        .onChange((value) => {
                             this.plugin.settings.targetFilePath = value;
-                            await this.plugin.saveSettings();
+                            void this.plugin.saveSettings();
                         });
                 })
                 .addButton((btn) => {
                     btn.setButtonText("🔍").onClick(() => {
-                        new FileSuggestModal(this.app, async (file) => {
+                        new FileSuggestModal(this.app, (file) => {
                             this.plugin.settings.targetFilePath = file.path;
-                            await this.plugin.saveSettings();
+                            void this.plugin.saveSettings();
                             this.display();
                         }).open();
                     });
@@ -361,16 +361,16 @@ class LichessVaultSettingTab extends PluginSettingTab {
                     text
                         .setPlaceholder("Enter path, e.g. Chess/Daily")
                         .setValue(this.plugin.settings.dailyFolder)
-                        .onChange(async (value) => {
+                        .onChange((value) => {
                             this.plugin.settings.dailyFolder = value;
-                            await this.plugin.saveSettings();
+                            void this.plugin.saveSettings();
                         });
                 })
                 .addButton((btn) => {
                     btn.setButtonText("🔍").onClick(() => {
-                        new FolderSuggestModal(this.app, async (folder) => {
+                        new FolderSuggestModal(this.app, (folder) => {
                             this.plugin.settings.dailyFolder = folder.path;
-                            await this.plugin.saveSettings();
+                            void this.plugin.saveSettings();
                             this.display();
                         }).open();
                     });
@@ -383,9 +383,9 @@ class LichessVaultSettingTab extends PluginSettingTab {
                 .addToggle((toggle) =>
                     toggle
                         .setValue(this.plugin.settings.show_date)
-                        .onChange(async (value) => {
+                        .onChange((value) => {
                             this.plugin.settings.show_date = value;
-                            await this.plugin.saveSettings();
+                            void this.plugin.saveSettings();
                         })
                 );
 
@@ -394,9 +394,9 @@ class LichessVaultSettingTab extends PluginSettingTab {
                 .addToggle((toggle) =>
                     toggle
                         .setValue(this.plugin.settings.show_ratingDiff)
-                        .onChange(async (value) => {
+                        .onChange((value) => {
                             this.plugin.settings.show_ratingDiff = value;
-                            await this.plugin.saveSettings();
+                            void this.plugin.saveSettings();
                         })
                 );
         });
@@ -408,9 +408,9 @@ class LichessVaultSettingTab extends PluginSettingTab {
                     .addToggle((toggle) =>
                         toggle
                             .setValue(this.plugin.settings.fm_show_games)
-                            .onChange(async (value) => {
+                            .onChange((value) => {
                                 this.plugin.settings.fm_show_games = value;
-                                await this.plugin.saveSettings();
+                                void this.plugin.saveSettings();
                             })
                     );
 
@@ -419,9 +419,9 @@ class LichessVaultSettingTab extends PluginSettingTab {
                     .addToggle((toggle) =>
                         toggle
                             .setValue(this.plugin.settings.fm_show_wins)
-                            .onChange(async (value) => {
+                            .onChange((value) => {
                                 this.plugin.settings.fm_show_wins = value;
-                                await this.plugin.saveSettings();
+                                void this.plugin.saveSettings();
                             })
                     );
 
@@ -430,9 +430,9 @@ class LichessVaultSettingTab extends PluginSettingTab {
                     .addToggle((toggle) =>
                         toggle
                             .setValue(this.plugin.settings.fm_show_defeats)
-                            .onChange(async (value) => {
+                            .onChange((value) => {
                                 this.plugin.settings.fm_show_defeats = value;
-                                await this.plugin.saveSettings();
+                                void this.plugin.saveSettings();
                             })
                     );
 
@@ -441,9 +441,9 @@ class LichessVaultSettingTab extends PluginSettingTab {
                     .addToggle((toggle) =>
                         toggle
                             .setValue(this.plugin.settings.fm_show_draws)
-                            .onChange(async (value) => {
+                            .onChange((value) => {
                                 this.plugin.settings.fm_show_draws = value;
-                                await this.plugin.saveSettings();
+                                void this.plugin.saveSettings();
                             })
                     );
 
@@ -452,9 +452,9 @@ class LichessVaultSettingTab extends PluginSettingTab {
                     .addToggle((toggle) =>
                         toggle
                             .setValue(this.plugin.settings.fm_show_win_rate)
-                            .onChange(async (value) => {
+                            .onChange((value) => {
                                 this.plugin.settings.fm_show_win_rate = value;
-                                await this.plugin.saveSettings();
+                                void this.plugin.saveSettings();
                             })
                     );
 
@@ -463,9 +463,9 @@ class LichessVaultSettingTab extends PluginSettingTab {
                     .addToggle((toggle) =>
                         toggle
                             .setValue(this.plugin.settings.fm_show_colors)
-                            .onChange(async (value) => {
+                            .onChange((value) => {
                                 this.plugin.settings.fm_show_colors = value;
-                                await this.plugin.saveSettings();
+                                void this.plugin.saveSettings();
                             })
                     );
             });
@@ -480,9 +480,9 @@ class LichessVaultSettingTab extends PluginSettingTab {
             .addButton((btn) =>
                 btn
                     .setButtonText("Reset (30 days)")
-                    .onClick(async () => {
+                    .onClick(() => {
                         this.plugin.settings.last_update = Date.now() - 30 * 24 * 60 * 60 * 1000;
-                        await this.plugin.saveSettings();
+                        void this.plugin.saveSettings();
                         this.display();
                         new Notice("Reset to 30 days ago. Will load games from the last 30 days.");
                     })
@@ -491,9 +491,9 @@ class LichessVaultSettingTab extends PluginSettingTab {
                 btn
                     .setButtonText("Reset (all time) ⚠️")
                     .setWarning()
-                    .onClick(async () => {
+                    .onClick(() => {
                         this.plugin.settings.last_update = 0;
-                        await this.plugin.saveSettings();
+                        void this.plugin.saveSettings();
                         this.display();
                         new Notice("Warning: all games will be loaded. This may cause errors if you have many games.");
                     })
