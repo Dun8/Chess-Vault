@@ -55,7 +55,7 @@ export default class ChessVaultPlugin extends Plugin {
 
         this.addCommand({
             id: "sync-chess-games",
-            name: "Sync games from Lichess",
+            name: "Sync games from lichess",
             callback: () => this.syncGames(),
         });
     }
@@ -87,7 +87,7 @@ export default class ChessVaultPlugin extends Plugin {
         let games: LichessGame[] = [];
 
         if (this.settings.nick == "") {
-            new Notice("Enter your Lichess username in settings.");
+            new Notice("Enter your ichess username in settings.");
             return;
         }
         if (this.settings.fileMode === "single" && this.settings.targetFilePath == "") {
@@ -311,7 +311,7 @@ class ChessVaultSettingTab extends PluginSettingTab {
             .setDesc("Your login on lichess.org")
             .addText((text) =>
                 text
-                    .setPlaceholder("e.g. MagnusCarlsen")
+                    .setPlaceholder("e.g. magnuscarlsen")
                     .setValue(this.plugin.settings.nick)
                     .onChange(async (value) => {
                         this.plugin.settings.nick = value;
@@ -480,7 +480,7 @@ class ChessVaultSettingTab extends PluginSettingTab {
             );
 
         containerEl.createEl("p", {
-            text: "⚠️ importing a large number of games (1000+) may cause errors due to Lichess API limits.",
+            text: "⚠️ importing a large number of games (1000+) may cause errors due to lichess api limits.",
             cls: "setting-item-description"
         });
     }
