@@ -1,14 +1,16 @@
 import {
     App,
     Plugin,
-    AbstractInputSuggest,
+    SuggestModal,
     TFile,
     PluginSettingTab,
     Setting,
-    Notice, TFolder,
+    Notice,
+    TFolder,
+    TAbstractFile,
 } from "obsidian";
-import import_games, {LichessGame} from "./lichgame.js";
-import {obrab_date, obrab_id, obrab_ratingDiff, calcStat} from "./obrab_games.js";
+import import_games, { LichessGame } from "./lichgame.js";
+import { obrab_date, obrab_id, obrab_ratingDiff, calcStat } from "./obrab_games.js";
 
 // Настройки
 
@@ -46,16 +48,16 @@ const DEFAULT_SETTINGS: ChessVaultSettings = {
 
 // Основной класс
 
-export default class ChessVaultPlugin extends Plugin {
+export default class LichessVaultPlugin extends Plugin {
     settings: ChessVaultSettings;
 
     async onload() {
         await this.loadSettings();
-        this.addSettingTab(new ChessVaultSettingTab(this.app, this));
+        this.addSettingTab(new LichessVaultSettingTab(this.app, this));
 
         this.addCommand({
             id: "sync-chess-games",
-            name: "Sync games from lichess",
+            name: "Sync games from Lichess",
             callback: () => this.syncGames(),
         });
     }
@@ -63,7 +65,8 @@ export default class ChessVaultPlugin extends Plugin {
     onunload() {}
 
     async loadSettings() {
-        this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData())
+        const saved = await this.loadData() as Partial<ChessVaultSettings>;
+        this.settings = Object.assign({}, DEFAULT_SETTINGS, saved);
     }
 
     async saveSettings() {
@@ -75,31 +78,30 @@ export default class ChessVaultPlugin extends Plugin {
         let current = "";
         for (const part of parts) {
             current = current ? `${current}/${part}` : part;
-            const existing = this.app.vault.getAbstractFileByPath(current);
+            const existing: TAbstractFile | null = this.app.vault.getAbstractFileByPath(current);
             if (!existing) {
-                await this.app.vault.createFolder(current);
+                await this.app.vault.adapter.mkdir(current);
             }
         }
     }
 
     async syncGames() {
-
         let games: LichessGame[] = [];
 
-        if (this.settings.nick == "") {
-            new Notice("Enter your ichess username in settings.");
+        if (this.settings.nick === "") {
+            new Notice("Enter your Lichess username in settings.");
             return;
         }
-        if (this.settings.fileMode === "single" && this.settings.targetFilePath == "") {
+        if (this.settings.fileMode === "single" && this.settings.targetFilePath === "") {
             new Notice("Enter the target file path in settings.");
             return;
         }
-        if (this.settings.fileMode === "daily" && this.settings.dailyFolder == "") {
+        if (this.settings.fileMode === "daily" && this.settings.dailyFolder === "") {
             new Notice("Enter the daily folder path in settings.");
             return;
         }
 
-        games = await import_games(this.settings.nick, this.settings.last_update, Date.now())
+        games = await import_games(this.settings.nick, this.settings.last_update, Date.now());
 
         if (games.length === 0) {
             new Notice("No new games found.");
@@ -112,12 +114,12 @@ export default class ChessVaultPlugin extends Plugin {
         const game_date: string[] = obrab_date(games);
         const game_ratingDiff: number[] = obrab_ratingDiff(this.settings.nick, games);
 
-        if (this.settings.fileMode == "daily") {
+        if (this.settings.fileMode === "daily") {
 
             const byDay = new Map<string, LichessGame[]>();
             for (const game of games) {
                 const d = new Date(game.createdAt);
-                const dateString = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+                const dateString = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
                 if (!byDay.has(dateString)) byDay.set(dateString, []);
                 byDay.get(dateString)!.push(game);
             }
@@ -173,7 +175,7 @@ export default class ChessVaultPlugin extends Plugin {
                 }
             }
 
-        } else if (this.settings.fileMode == "single") {
+        } else if (this.settings.fileMode === "single") {
             const abstract = this.app.vault.getAbstractFileByPath(this.settings.targetFilePath);
             let File: TFile | null = null;
 
@@ -189,7 +191,7 @@ export default class ChessVaultPlugin extends Plugin {
                     ? this.settings.targetFilePath.substring(0, this.settings.targetFilePath.lastIndexOf("/"))
                     : "";
                 if (folderPath) await this.ensureFolder(folderPath);
-                File = await this.app.vault.create(this.settings.targetFilePath, '');
+                File = await this.app.vault.create(this.settings.targetFilePath, "");
             }
 
             for (let i = 0; i < game_id.length; i++) {
@@ -211,77 +213,72 @@ export default class ChessVaultPlugin extends Plugin {
 
 // Автодополнение файлов
 
-class FileSuggest extends AbstractInputSuggest<TFile> {
-    constructor(app: App, private inputEl: HTMLInputElement) {
-        super(app, inputEl);
+class FileSuggestModal extends SuggestModal<TFile> {
+    private onSelect: (file: TFile) => void;
+
+    constructor(app: App, onSelect: (file: TFile) => void) {
+        super(app);
+        this.onSelect = onSelect;
     }
 
-    getSuggestions(inputStr: string): TFile[] {
-        const files = this.app.vault.getMarkdownFiles();
-        const q = inputStr.toLowerCase();
-        return files.filter(
-            (f) =>
-                f.name.toLowerCase().includes(q) ||
-                f.path.toLowerCase().includes(q)
+    getSuggestions(query: string): TFile[] {
+        const q = query.toLowerCase();
+        return this.app.vault.getMarkdownFiles().filter(
+            (f) => f.name.toLowerCase().includes(q) || f.path.toLowerCase().includes(q)
         );
     }
 
     renderSuggestion(file: TFile, el: HTMLElement): void {
-        el.createEl("div", { text: file.name });
+        el.createDiv({ text: file.name });
         el.createEl("small", { text: file.path, cls: "suggestion-note" });
     }
 
-    selectSuggestion(file: TFile): void {
-        this.inputEl.value = file.path;
-        this.inputEl.dispatchEvent(new Event("input", { bubbles: true }));
-        this.inputEl.dispatchEvent(new Event("change", { bubbles: true }));
-        this.close();
+    onChooseSuggestion(file: TFile): void {
+        this.onSelect(file);
     }
 }
 
 // Автодополнение папок
 
-class FolderSuggest extends AbstractInputSuggest<TFolder> {
-    constructor(app: App, private inputEl: HTMLInputElement) {
-        super(app, inputEl);
+class FolderSuggestModal extends SuggestModal<TFolder> {
+    private onSelect: (folder: TFolder) => void;
+
+    constructor(app: App, onSelect: (folder: TFolder) => void) {
+        super(app);
+        this.onSelect = onSelect;
     }
 
-    getSuggestions(inputStr: string): TFolder[] {
-        const files = this.app.vault.getAllLoadedFiles().filter((f): f is TFolder => f instanceof TFolder);
-        const q = inputStr.toLowerCase();
-        return files.filter(
-            (f) =>
-                f.name.toLowerCase().includes(q) ||
-                f.path.toLowerCase().includes(q)
-        );
+    getSuggestions(query: string): TFolder[] {
+        const q = query.toLowerCase();
+        return this.app.vault
+            .getAllLoadedFiles()
+            .filter((f): f is TFolder => f instanceof TFolder)
+            .filter((f) => f.name.toLowerCase().includes(q) || f.path.toLowerCase().includes(q));
     }
 
-    renderSuggestion(file: TFolder, el: HTMLElement): void {
-        el.createEl("div", { text: file.name });
-        if (file.path !== "/") {
-            el.createEl("small", { text: file.path, cls: "suggestion-note" });
+    renderSuggestion(folder: TFolder, el: HTMLElement): void {
+        el.createDiv({ text: folder.name });
+        if (folder.path !== "/") {
+            el.createEl("small", { text: folder.path, cls: "suggestion-note" });
         }
     }
 
-    selectSuggestion(file: TFolder): void {
-        this.inputEl.value = file.path;
-        this.inputEl.dispatchEvent(new Event("input", { bubbles: true }));
-        this.inputEl.dispatchEvent(new Event("change", { bubbles: true }));
-        this.close();
+    onChooseSuggestion(folder: TFolder): void {
+        this.onSelect(folder);
     }
 }
 
 // Разворачивающаяся секция
 
 function createCollapsible(containerEl: HTMLElement, title: string, buildContent: (el: HTMLElement) => void): void {
-    const header = containerEl.createEl("div", { cls: "chess-collapsible-header" });
+    const header = containerEl.createDiv({ cls: "chess-collapsible-header" });
 
-    const arrow = header.createEl("span", { cls: "chess-collapsible-arrow" });
+    const arrow = header.createSpan({ cls: "chess-collapsible-arrow" });
     arrow.setText("▶");
 
-    header.createEl("span", { text: title });
+    header.createSpan({ text: title });
 
-    const content = containerEl.createEl("div", { cls: "chess-collapsible-content" });
+    const content = containerEl.createDiv({ cls: "chess-collapsible-content" });
 
     buildContent(content);
 
@@ -294,10 +291,10 @@ function createCollapsible(containerEl: HTMLElement, title: string, buildContent
 
 // Вкладка настроек
 
-class ChessVaultSettingTab extends PluginSettingTab {
-    plugin: ChessVaultPlugin;
+class LichessVaultSettingTab extends PluginSettingTab {
+    plugin: LichessVaultPlugin;
 
-    constructor(app: App, plugin: ChessVaultPlugin) {
+    constructor(app: App, plugin: LichessVaultPlugin) {
         super(app, plugin);
         this.plugin = plugin;
     }
@@ -311,7 +308,7 @@ class ChessVaultSettingTab extends PluginSettingTab {
             .setDesc("Your login on lichess.org")
             .addText((text) =>
                 text
-                    .setPlaceholder("e.g. magnuscarlsen")
+                    .setPlaceholder("e.g. MagnusCarlsen")
                     .setValue(this.plugin.settings.nick)
                     .onChange(async (value) => {
                         this.plugin.settings.nick = value;
@@ -322,66 +319,85 @@ class ChessVaultSettingTab extends PluginSettingTab {
         new Setting(containerEl)
             .setName("Save mode")
             .setDesc("Save all games to one file or to a separate file for each day.")
-            .addDropdown(drop => drop
-                .addOption("single", "Single file")
-                .addOption("daily", "Daily files")
-                .setValue(this.plugin.settings.fileMode)
-                .onChange(async (value) => {
-                    this.plugin.settings.fileMode = value as "single" | "daily";
-                    await this.plugin.saveSettings();
-                    this.display();
-                })
+            .addDropdown((drop) =>
+                drop
+                    .addOption("single", "Single file")
+                    .addOption("daily", "Daily files")
+                    .setValue(this.plugin.settings.fileMode)
+                    .onChange(async (value) => {
+                        this.plugin.settings.fileMode = value as "single" | "daily";
+                        await this.plugin.saveSettings();
+                        this.display();
+                    })
             );
 
         if (this.plugin.settings.fileMode === "single") {
             new Setting(containerEl)
                 .setName("Target file")
-                .setDesc("File where games will be appended.")
-                .addSearch((search) => {
-                    search
-                        .setPlaceholder("Enter name or path...")
+                .setDesc("File where games will be appended. Click 🔍 to browse.")
+                .addText((text) => {
+                    text
+                        .setPlaceholder("Enter path, e.g. Chess/games.md")
                         .setValue(this.plugin.settings.targetFilePath)
                         .onChange(async (value) => {
                             this.plugin.settings.targetFilePath = value;
                             await this.plugin.saveSettings();
                         });
-                    new FileSuggest(this.app, search.inputEl);
+                })
+                .addButton((btn) => {
+                    btn.setButtonText("🔍").onClick(() => {
+                        new FileSuggestModal(this.app, async (file) => {
+                            this.plugin.settings.targetFilePath = file.path;
+                            await this.plugin.saveSettings();
+                            this.display();
+                        }).open();
+                    });
                 });
         } else {
             new Setting(containerEl)
                 .setName("Daily folder")
-                .setDesc("Folder where daily files will be created.")
-                .addSearch((search) => {
-                    search
-                        .setPlaceholder("Enter name or path...")
+                .setDesc("Folder where daily files will be created. Click 🔍 to browse.")
+                .addText((text) => {
+                    text
+                        .setPlaceholder("Enter path, e.g. Chess/Daily")
                         .setValue(this.plugin.settings.dailyFolder)
                         .onChange(async (value) => {
                             this.plugin.settings.dailyFolder = value;
                             await this.plugin.saveSettings();
                         });
-                    new FolderSuggest(this.app, search.inputEl);
+                })
+                .addButton((btn) => {
+                    btn.setButtonText("🔍").onClick(() => {
+                        new FolderSuggestModal(this.app, async (folder) => {
+                            this.plugin.settings.dailyFolder = folder.path;
+                            await this.plugin.saveSettings();
+                            this.display();
+                        }).open();
+                    });
                 });
         }
 
         createCollapsible(containerEl, "⚙️ Show before each game", (el) => {
             new Setting(el)
                 .setName("Game date")
-                .addToggle(toggle => toggle
-                    .setValue(this.plugin.settings.show_date)
-                    .onChange(async (value) => {
-                        this.plugin.settings.show_date = value;
-                        await this.plugin.saveSettings();
-                    })
+                .addToggle((toggle) =>
+                    toggle
+                        .setValue(this.plugin.settings.show_date)
+                        .onChange(async (value) => {
+                            this.plugin.settings.show_date = value;
+                            await this.plugin.saveSettings();
+                        })
                 );
 
             new Setting(el)
                 .setName("Rating diff")
-                .addToggle(toggle => toggle
-                    .setValue(this.plugin.settings.show_ratingDiff)
-                    .onChange(async (value) => {
-                        this.plugin.settings.show_ratingDiff = value;
-                        await this.plugin.saveSettings();
-                    })
+                .addToggle((toggle) =>
+                    toggle
+                        .setValue(this.plugin.settings.show_ratingDiff)
+                        .onChange(async (value) => {
+                            this.plugin.settings.show_ratingDiff = value;
+                            await this.plugin.saveSettings();
+                        })
                 );
         });
 
@@ -389,62 +405,68 @@ class ChessVaultSettingTab extends PluginSettingTab {
             createCollapsible(containerEl, "📊 File properties (frontmatter)", (el) => {
                 new Setting(el)
                     .setName("Number of games")
-                    .addToggle(toggle => toggle
-                        .setValue(this.plugin.settings.fm_show_games)
-                        .onChange(async (value) => {
-                            this.plugin.settings.fm_show_games = value;
-                            await this.plugin.saveSettings();
-                        })
+                    .addToggle((toggle) =>
+                        toggle
+                            .setValue(this.plugin.settings.fm_show_games)
+                            .onChange(async (value) => {
+                                this.plugin.settings.fm_show_games = value;
+                                await this.plugin.saveSettings();
+                            })
                     );
 
                 new Setting(el)
                     .setName("Wins")
-                    .addToggle(toggle => toggle
-                        .setValue(this.plugin.settings.fm_show_wins)
-                        .onChange(async (value) => {
-                            this.plugin.settings.fm_show_wins = value;
-                            await this.plugin.saveSettings();
-                        })
+                    .addToggle((toggle) =>
+                        toggle
+                            .setValue(this.plugin.settings.fm_show_wins)
+                            .onChange(async (value) => {
+                                this.plugin.settings.fm_show_wins = value;
+                                await this.plugin.saveSettings();
+                            })
                     );
 
                 new Setting(el)
                     .setName("Defeats")
-                    .addToggle(toggle => toggle
-                        .setValue(this.plugin.settings.fm_show_defeats)
-                        .onChange(async (value) => {
-                            this.plugin.settings.fm_show_defeats = value;
-                            await this.plugin.saveSettings();
-                        })
+                    .addToggle((toggle) =>
+                        toggle
+                            .setValue(this.plugin.settings.fm_show_defeats)
+                            .onChange(async (value) => {
+                                this.plugin.settings.fm_show_defeats = value;
+                                await this.plugin.saveSettings();
+                            })
                     );
 
                 new Setting(el)
                     .setName("Draws")
-                    .addToggle(toggle => toggle
-                        .setValue(this.plugin.settings.fm_show_draws)
-                        .onChange(async (value) => {
-                            this.plugin.settings.fm_show_draws = value;
-                            await this.plugin.saveSettings();
-                        })
+                    .addToggle((toggle) =>
+                        toggle
+                            .setValue(this.plugin.settings.fm_show_draws)
+                            .onChange(async (value) => {
+                                this.plugin.settings.fm_show_draws = value;
+                                await this.plugin.saveSettings();
+                            })
                     );
 
                 new Setting(el)
                     .setName("Win rate")
-                    .addToggle(toggle => toggle
-                        .setValue(this.plugin.settings.fm_show_win_rate)
-                        .onChange(async (value) => {
-                            this.plugin.settings.fm_show_win_rate = value;
-                            await this.plugin.saveSettings();
-                        })
+                    .addToggle((toggle) =>
+                        toggle
+                            .setValue(this.plugin.settings.fm_show_win_rate)
+                            .onChange(async (value) => {
+                                this.plugin.settings.fm_show_win_rate = value;
+                                await this.plugin.saveSettings();
+                            })
                     );
 
                 new Setting(el)
                     .setName("Games as white / black")
-                    .addToggle(toggle => toggle
-                        .setValue(this.plugin.settings.fm_show_colors)
-                        .onChange(async (value) => {
-                            this.plugin.settings.fm_show_colors = value;
-                            await this.plugin.saveSettings();
-                        })
+                    .addToggle((toggle) =>
+                        toggle
+                            .setValue(this.plugin.settings.fm_show_colors)
+                            .onChange(async (value) => {
+                                this.plugin.settings.fm_show_colors = value;
+                                await this.plugin.saveSettings();
+                            })
                     );
             });
         }
@@ -458,19 +480,17 @@ class ChessVaultSettingTab extends PluginSettingTab {
             .addButton((btn) =>
                 btn
                     .setButtonText("Reset (30 days)")
-                    .setTooltip("Will load games from the last 30 days")
                     .onClick(async () => {
                         this.plugin.settings.last_update = Date.now() - 30 * 24 * 60 * 60 * 1000;
                         await this.plugin.saveSettings();
                         this.display();
-                        new Notice("Reset to 30 days ago.");
+                        new Notice("Reset to 30 days ago. Will load games from the last 30 days.");
                     })
             )
             .addButton((btn) =>
                 btn
-                    .setButtonText("Reset (all time)")
+                    .setButtonText("Reset (all time) ⚠️")
                     .setWarning()
-                    .setTooltip("Warning: may cause errors if you have many games!")
                     .onClick(async () => {
                         this.plugin.settings.last_update = 0;
                         await this.plugin.saveSettings();
@@ -480,8 +500,8 @@ class ChessVaultSettingTab extends PluginSettingTab {
             );
 
         containerEl.createEl("p", {
-            text: "⚠️ importing a large number of games (1000+) may cause errors due to lichess api limits.",
-            cls: "setting-item-description"
+            text: "⚠️ Importing a large number of games (1000+) may cause errors due to Lichess API limits.",
+            cls: "setting-item-description",
         });
     }
 }

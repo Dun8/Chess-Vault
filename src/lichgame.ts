@@ -22,6 +22,10 @@ export default async function import_games(nick: string, since_t: number, until_
 
     if (!text.trim()) return [];
 
-    const games: LichessGame[] = text.trim().split("\n").map((line) => JSON.parse(line));
+    const games: LichessGame[] = text
+        .trim()
+        .split("\n")
+        .map((line): LichessGame => JSON.parse(line) as LichessGame);
+
     return games;
 }
