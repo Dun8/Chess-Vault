@@ -193,7 +193,7 @@ export default class LichessVaultPlugin extends Plugin {
                         prefix += `\n> 📅 ${dt.toLocaleString()}\n`;
                     }
 
-                    return `\n${prefix}<iframe src="https://www.chess.com/emboard?id=${game.uuid}" width=600 height=397 frameborder=0></iframe>\n`;
+                    return `\n${prefix}<iframe src="https://www.chess.com/emboard?id=${game.uuid}" width=600 height=450 frameborder=0></iframe>\n`;
                 }).join("");
 
                 if (abstract instanceof TFile) {
@@ -249,7 +249,7 @@ export default class LichessVaultPlugin extends Plugin {
                 let prefix = "";
                 if (this.settings.show_date) prefix += `\n> 📅 ${game_date_chesscom[i]}\n`;
 
-                const block = `\n${prefix}<iframe src="https://www.chess.com/game/live/${game_id_chesscom[i]}" width=600 height=397 frameborder=0></iframe>\n`;
+                const block = `\n${prefix}<iframe src="https://www.chess.com/emboard?id=${game_id_chesscom[i]}" width=600 height=450 frameborder=0></iframe>\n`;
                 const existing = await this.app.vault.read(File);
                 await this.app.vault.modify(File, existing + block);
             }

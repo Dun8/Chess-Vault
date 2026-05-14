@@ -31,8 +31,8 @@ export default async function import_games_chesscom(
     const untilDate = new Date(until_t);
 
     const archivesRes = await requestUrl({
-        url: "https://api.chess.com/pub/player/${nick}/games/archives"
-});
+        url: `https://api.chess.com/pub/player/${nick}/games/archives`,
+    });
     const { archives }: ArchivesResponse = archivesRes.json;
 
     const relevantUrls = archives.filter((url) => {
