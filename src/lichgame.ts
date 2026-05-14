@@ -6,11 +6,11 @@ export interface LichessGame {
         white: { user: { name: string }; rating: number; ratingDiff: number };
         black: { user: { name: string }; rating: number; ratingDiff: number };
     };
-    createdAt: number;
+    lastMoveAt: number;
     winner?: string;
 }
 
-export default async function import_games(nick: string, since_t: number, until_t: number): Promise<LichessGame[]> {
+export default async function import_games_lichess(nick: string, since_t: number, until_t: number): Promise<LichessGame[]> {
     const res = await requestUrl({
         url: `https://lichess.org/api/games/user/${nick}?since=${since_t}&until=${until_t}`,
         headers: {
