@@ -57,6 +57,10 @@ Open **Settings → Obsidian Chess Vault** and fill in:
 | Games File       | Path to file (single file mode)      |
 | Games Folder     | Folder for daily files (daily mode)  |
 
+⚠️ To display embedded chess boards correctly, enable:
+
+Settings → Editor → Render HTML
+
 ---
 
 ### Sync
