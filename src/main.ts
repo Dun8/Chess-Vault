@@ -136,7 +136,7 @@ export default class LichessVaultPlugin extends Plugin {
                 if (!byDay_chesscom.has(dateString)) byDay_chesscom.set(dateString, []);
                 byDay_chesscom.get(dateString)!.push(game);
             }
-            
+
             const allDates = new Set([...byDay_lichess.keys(), ...byDay_chesscom.keys()]);
 
             for (const dateString of allDates) {
@@ -193,7 +193,7 @@ export default class LichessVaultPlugin extends Plugin {
                         prefix += `\n> 📅 ${dt.toLocaleString()}\n`;
                     }
 
-                    return `\n${prefix}<iframe src="https://www.chess.com/game/live/${game.uuid}" width=600 height=397 frameborder=0></iframe>\n`;
+                    return `\n${prefix}<iframe src="https://www.chess.com/emboard?id=${game.uuid}" width=600 height=397 frameborder=0></iframe>\n`;
                 }).join("");
 
                 if (abstract instanceof TFile) {
