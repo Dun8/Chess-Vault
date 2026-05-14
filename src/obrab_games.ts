@@ -20,7 +20,7 @@ export function obrab_id(games: LichessGame[]): string[] {
 }
 
 export function obrab_date(games: LichessGame[]): string[] {
-    return games.map((game) => new Date(game.createdAt).toLocaleString());
+    return games.map((game) => new Date(game.lastMoveAt).toLocaleString());
 }
 
 export function obrab_ratingDiff(nick: string, games: LichessGame[]): number[] {

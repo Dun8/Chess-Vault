@@ -118,7 +118,7 @@ export default class LichessVaultPlugin extends Plugin {
 
             const byDay = new Map<string, LichessGame[]>();
             for (const game of games) {
-                const d = new Date(game.createdAt);
+                const d = new Date(game.lastMoveAt);
                 const dateString = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
                 if (!byDay.has(dateString)) byDay.set(dateString, []);
                 byDay.get(dateString)!.push(game);
@@ -151,7 +151,7 @@ export default class LichessVaultPlugin extends Plugin {
 
                     let prefix = "";
                     if (this.settings.show_date) {
-                        const dt = new Date(game.createdAt);
+                        const dt = new Date(game.lastMoveAt);
                         prefix += `\n> 📅 ${dt.toLocaleString()}\n`;
                     }
                     if (this.settings.show_ratingDiff) prefix += `\n> 📈 Rating diff: \`${ratingDiff}\`\n`;

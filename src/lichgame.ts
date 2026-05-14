@@ -6,7 +6,7 @@ export interface LichessGame {
         white: { user: { name: string }; rating: number; ratingDiff: number };
         black: { user: { name: string }; rating: number; ratingDiff: number };
     };
-    createdAt: number;
+    lastMoveAt: number;
     winner?: string;
 }
 
