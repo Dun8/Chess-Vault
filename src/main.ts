@@ -9,13 +9,13 @@ import {
     TFolder,
     TAbstractFile,
 } from "obsidian";
-import import_games, { LichessGame } from "./lichgame.js";
-import { obrab_date, obrab_id, obrab_ratingDiff, calcStat } from "./obrab_games.js";
-
-// Настройки
+import import_games_lichess, { LichessGame } from "./lichgame.js";
+import { obrab_date_lichess, obrab_id_lichess, obrab_ratingDiff_lichess, calcStat_lichess, obrab_date_chesscom, obrab_id_chesscom, calcStat_chesscom } from "./obrab_games.js";
+import import_games_chesscom, { ChesscomGame } from "./chesscomgames.js";
 
 interface ChessVaultSettings {
-    nick: string;
+    nick_lichess: string;
+    nick_chesscom: string;
     targetFilePath: string;
     last_update: number;
     fileMode: "single" | "daily";
@@ -31,7 +31,8 @@ interface ChessVaultSettings {
 }
 
 const DEFAULT_SETTINGS: ChessVaultSettings = {
-    nick: "",
+    nick_lichess: "",
+    nick_chesscom: "",
     targetFilePath: "",
     last_update: Date.now() - 30 * 24 * 60 * 60 * 1000,
     fileMode: "single",
@@ -46,18 +47,15 @@ const DEFAULT_SETTINGS: ChessVaultSettings = {
     fm_show_colors: false,
 };
 
-// Основной класс
-
 export default class LichessVaultPlugin extends Plugin {
     settings: ChessVaultSettings;
 
     async onload() {
         await this.loadSettings();
         this.addSettingTab(new LichessVaultSettingTab(this.app, this));
-
         this.addCommand({
             id: "sync-chess-games",
-            name: "Sync games from Lichess",
+            name: "Sync games",
             callback: () => this.syncGames(),
         });
     }
@@ -86,10 +84,11 @@ export default class LichessVaultPlugin extends Plugin {
     }
 
     async syncGames() {
-        let games: LichessGame[] = [];
+        let games_lichess: LichessGame[] = [];
+        let games_chesscom: ChesscomGame[] = [];
 
-        if (this.settings.nick === "") {
-            new Notice("Enter your Lichess username in settings.");
+        if (this.settings.nick_lichess === "" && this.settings.nick_chesscom === "") {
+            new Notice("Enter your Lichess/Chesscom username in settings.");
             return;
         }
         if (this.settings.fileMode === "single" && this.settings.targetFilePath === "") {
@@ -101,51 +100,79 @@ export default class LichessVaultPlugin extends Plugin {
             return;
         }
 
-        games = await import_games(this.settings.nick, this.settings.last_update, Date.now());
+        if (this.settings.nick_lichess !== "") {
+            games_lichess = await import_games_lichess(this.settings.nick_lichess, this.settings.last_update, Date.now());
+        }
+        if (this.settings.nick_chesscom !== "") {
+            games_chesscom = await import_games_chesscom(this.settings.nick_chesscom, this.settings.last_update, Date.now());
+        }
 
-        if (games.length === 0) {
+        if (games_lichess.length === 0 && games_chesscom.length === 0) {
             new Notice("No new games found.");
             this.settings.last_update = Date.now();
             await this.saveSettings();
             return;
         }
 
-        const game_id: string[] = obrab_id(games);
-        const game_date: string[] = obrab_date(games);
-        const game_ratingDiff: number[] = obrab_ratingDiff(this.settings.nick, games);
+        const game_id_lichess: string[] = obrab_id_lichess(games_lichess);
+        const game_date_lichess: string[] = obrab_date_lichess(games_lichess);
+        const game_ratingDiff_lichess: number[] = obrab_ratingDiff_lichess(this.settings.nick_lichess, games_lichess);
+        const game_id_chesscom: string[] = obrab_id_chesscom(games_chesscom);
+        const game_date_chesscom: string[] = obrab_date_chesscom(games_chesscom);
 
         if (this.settings.fileMode === "daily") {
+            const byDay_lichess = new Map<string, LichessGame[]>();
+            const byDay_chesscom = new Map<string, ChesscomGame[]>();
 
-            const byDay = new Map<string, LichessGame[]>();
-            for (const game of games) {
+            for (const game of games_lichess) {
                 const d = new Date(game.lastMoveAt);
                 const dateString = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-                if (!byDay.has(dateString)) byDay.set(dateString, []);
-                byDay.get(dateString)!.push(game);
+                if (!byDay_lichess.has(dateString)) byDay_lichess.set(dateString, []);
+                byDay_lichess.get(dateString)!.push(game);
+            }
+            for (const game of games_chesscom) {
+                const d = new Date(game.end_time * 1000);
+                const dateString = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+                if (!byDay_chesscom.has(dateString)) byDay_chesscom.set(dateString, []);
+                byDay_chesscom.get(dateString)!.push(game);
             }
 
-            for (const [dateString, dayGames] of byDay) {
+            const allDates = new Set([...byDay_lichess.keys(), ...byDay_chesscom.keys()]);
+
+            for (const dateString of allDates) {
                 const filePath = `${this.settings.dailyFolder}/${dateString}.md`;
                 const abstract = this.app.vault.getAbstractFileByPath(filePath);
                 let File: TFile | null = null;
 
-                const stat = calcStat(this.settings.nick, dayGames);
+                const dayGames_lichess = byDay_lichess.get(dateString) ?? [];
+                const dayGames_chesscom = byDay_chesscom.get(dateString) ?? [];
+
+                const stat_lichess = calcStat_lichess(this.settings.nick_lichess, dayGames_lichess);
+                const stat_chesscom = calcStat_chesscom(this.settings.nick_chesscom, dayGames_chesscom);
+
+                const totalGames = stat_lichess.number_of_games_played + stat_chesscom.number_of_games_played;
+                const totalWins = stat_lichess.wins + stat_chesscom.wins;
+                const totalDefeats = stat_lichess.defeats + stat_chesscom.defeats;
+                const totalDraws = stat_lichess.draws + stat_chesscom.draws;
+                const totalWinRate = totalGames ? totalWins / totalGames : 0;
+                const totalWhite = stat_lichess.number_of_games_for_white + stat_chesscom.number_of_games_for_white;
+                const totalBlack = stat_lichess.number_of_games_for_black + stat_chesscom.number_of_games_for_black;
 
                 const fmLines = ["---", `date: ${dateString}`];
-                if (this.settings.fm_show_games)   fmLines.push(`games: ${stat.number_of_games_played}`);
-                if (this.settings.fm_show_wins)     fmLines.push(`wins: ${stat.wins}`);
-                if (this.settings.fm_show_defeats)  fmLines.push(`defeats: ${stat.defeats}`);
-                if (this.settings.fm_show_draws)    fmLines.push(`draws: ${stat.draws}`);
-                if (this.settings.fm_show_win_rate) fmLines.push(`win_rate: ${Math.round(stat.winning_percentage * 100)}%`);
+                if (this.settings.fm_show_games)   fmLines.push(`games: ${totalGames}`);
+                if (this.settings.fm_show_wins)     fmLines.push(`wins: ${totalWins}`);
+                if (this.settings.fm_show_defeats)  fmLines.push(`defeats: ${totalDefeats}`);
+                if (this.settings.fm_show_draws)    fmLines.push(`draws: ${totalDraws}`);
+                if (this.settings.fm_show_win_rate) fmLines.push(`win_rate: ${Math.round(totalWinRate * 100)}%`);
                 if (this.settings.fm_show_colors) {
-                    fmLines.push(`games_as_white: ${stat.number_of_games_for_white}`);
-                    fmLines.push(`games_as_black: ${stat.number_of_games_for_black}`);
+                    fmLines.push(`games_as_white: ${totalWhite}`);
+                    fmLines.push(`games_as_black: ${totalBlack}`);
                 }
                 fmLines.push("---");
                 const frontmatter = fmLines.join("\n");
 
-                const iframes = dayGames.map((game) => {
-                    const ratingDiff = game.players.white.user.name === this.settings.nick
+                const iframes_lichess = dayGames_lichess.map((game) => {
+                    const ratingDiff = game.players.white.user.name === this.settings.nick_lichess
                         ? game.players.white.ratingDiff
                         : game.players.black.ratingDiff;
 
@@ -159,19 +186,31 @@ export default class LichessVaultPlugin extends Plugin {
                     return `\n${prefix}<iframe src="https://lichess.org/embed/game/${game.id}?theme=auto&bg=auto" width=600 height=397 frameborder=0></iframe>\n`;
                 }).join("");
 
+                const iframes_chesscom = dayGames_chesscom.map((game) => {
+                    let prefix = "";
+                    if (this.settings.show_date) {
+                        const dt = new Date(game.end_time * 1000);
+                        prefix += `\n> 📅 ${dt.toLocaleString()}\n`;
+                    }
+
+                    return `\n${prefix}<iframe src="https://www.chess.com/emboard?id=${game.uuid}" width=600 height=450 frameborder=0></iframe>\n`;
+                }).join("");
+
                 if (abstract instanceof TFile) {
                     File = abstract;
                 }
 
+                const newContent = frontmatter + "\n" + iframes_lichess + iframes_chesscom;
+
                 if (File === null) {
                     await this.ensureFolder(this.settings.dailyFolder);
-                    await this.app.vault.create(filePath, frontmatter + "\n" + iframes);
+                    await this.app.vault.create(filePath, newContent);
                 } else {
                     const existing = await this.app.vault.read(File);
                     const withoutFrontmatter = existing.startsWith("---")
                         ? existing.replace(/^---[\s\S]*?---\n/, "")
                         : existing;
-                    await this.app.vault.modify(File, frontmatter + "\n" + withoutFrontmatter + iframes);
+                    await this.app.vault.modify(File, frontmatter + "\n" + withoutFrontmatter + iframes_lichess + iframes_chesscom);
                 }
             }
 
@@ -194,12 +233,23 @@ export default class LichessVaultPlugin extends Plugin {
                 File = await this.app.vault.create(this.settings.targetFilePath, "");
             }
 
-            for (let i = 0; i < game_id.length; i++) {
+            // Lichess
+            for (let i = 0; i < game_id_lichess.length; i++) {
                 let prefix = "";
-                if (this.settings.show_date) prefix += `\n> 📅 ${game_date[i]}\n`;
-                if (this.settings.show_ratingDiff) prefix += `\n> 📈 Rating diff: \`${game_ratingDiff[i]}\`\n`;
+                if (this.settings.show_date) prefix += `\n> 📅 ${game_date_lichess[i]}\n`;
+                if (this.settings.show_ratingDiff) prefix += `\n> 📈 Rating diff: \`${game_ratingDiff_lichess[i]}\`\n`;
 
-                const block = `\n${prefix}<iframe src="https://lichess.org/embed/game/${game_id[i]}?theme=auto&bg=auto" width=600 height=397 frameborder=0></iframe>\n`;
+                const block = `\n${prefix}<iframe src="https://lichess.org/embed/game/${game_id_lichess[i]}?theme=auto&bg=auto" width=600 height=397 frameborder=0></iframe>\n`;
+                const existing = await this.app.vault.read(File);
+                await this.app.vault.modify(File, existing + block);
+            }
+
+            // Chess.com
+            for (let i = 0; i < game_id_chesscom.length; i++) {
+                let prefix = "";
+                if (this.settings.show_date) prefix += `\n> 📅 ${game_date_chesscom[i]}\n`;
+
+                const block = `\n${prefix}<iframe src="https://www.chess.com/emboard?id=${game_id_chesscom[i]}" width=600 height=450 frameborder=0></iframe>\n`;
                 const existing = await this.app.vault.read(File);
                 await this.app.vault.modify(File, existing + block);
             }
@@ -207,7 +257,7 @@ export default class LichessVaultPlugin extends Plugin {
 
         this.settings.last_update = Date.now();
         await this.saveSettings();
-        new Notice(`Added ${games.length} games.`);
+        new Notice(`Added ${games_lichess.length + games_chesscom.length} games.`);
     }
 }
 
@@ -272,16 +322,11 @@ class FolderSuggestModal extends SuggestModal<TFolder> {
 
 function createCollapsible(containerEl: HTMLElement, title: string, buildContent: (el: HTMLElement) => void): void {
     const header = containerEl.createDiv({ cls: "chess-collapsible-header" });
-
     const arrow = header.createSpan({ cls: "chess-collapsible-arrow" });
     arrow.setText("▶");
-
     header.createSpan({ text: title });
-
     const content = containerEl.createDiv({ cls: "chess-collapsible-content" });
-
     buildContent(content);
-
     header.addEventListener("click", () => {
         const isOpen = content.classList.contains("open");
         content.toggleClass("open", !isOpen);
@@ -304,14 +349,27 @@ class LichessVaultSettingTab extends PluginSettingTab {
         containerEl.empty();
 
         new Setting(containerEl)
+            .setName("Chesscom username")
+            .setDesc("Your login on chess.com")
+            .addText((text) =>
+                text
+                    .setPlaceholder("e.g. MagnusCarlsen")
+                    .setValue(this.plugin.settings.nick_chesscom)
+                    .onChange((value) => {
+                        this.plugin.settings.nick_chesscom = value;
+                        void this.plugin.saveSettings();
+                    })
+            );
+
+        new Setting(containerEl)
             .setName("Lichess username")
             .setDesc("Your login on lichess.org")
             .addText((text) =>
                 text
                     .setPlaceholder("e.g. MagnusCarlsen")
-                    .setValue(this.plugin.settings.nick)
+                    .setValue(this.plugin.settings.nick_lichess)
                     .onChange((value) => {
-                        this.plugin.settings.nick = value;
+                        this.plugin.settings.nick_lichess = value;
                         void this.plugin.saveSettings();
                     })
             );
@@ -391,6 +449,7 @@ class LichessVaultSettingTab extends PluginSettingTab {
 
             new Setting(el)
                 .setName("Rating diff")
+                .setDesc("Lichess only")
                 .addToggle((toggle) =>
                     toggle
                         .setValue(this.plugin.settings.show_ratingDiff)
@@ -413,7 +472,6 @@ class LichessVaultSettingTab extends PluginSettingTab {
                                 void this.plugin.saveSettings();
                             })
                     );
-
                 new Setting(el)
                     .setName("Wins")
                     .addToggle((toggle) =>
@@ -424,7 +482,6 @@ class LichessVaultSettingTab extends PluginSettingTab {
                                 void this.plugin.saveSettings();
                             })
                     );
-
                 new Setting(el)
                     .setName("Defeats")
                     .addToggle((toggle) =>
@@ -435,7 +492,6 @@ class LichessVaultSettingTab extends PluginSettingTab {
                                 void this.plugin.saveSettings();
                             })
                     );
-
                 new Setting(el)
                     .setName("Draws")
                     .addToggle((toggle) =>
@@ -446,7 +502,6 @@ class LichessVaultSettingTab extends PluginSettingTab {
                                 void this.plugin.saveSettings();
                             })
                     );
-
                 new Setting(el)
                     .setName("Win rate")
                     .addToggle((toggle) =>
@@ -457,7 +512,6 @@ class LichessVaultSettingTab extends PluginSettingTab {
                                 void this.plugin.saveSettings();
                             })
                     );
-
                 new Setting(el)
                     .setName("Games as white / black")
                     .addToggle((toggle) =>
