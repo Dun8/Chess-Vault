@@ -1,16 +1,17 @@
+
 # Chess Vault
 
-A plugin for Obsidian that syncs your chess games from Lichess directly into your vault. Games are saved as embedded boards — you can view and analyze them прямо inside your notes.
+A plugin for Obsidian that syncs your chess games from Lichess and Chess.com directly into your vault. Games are saved as embedded boards — you can view and analyze them right inside your notes.
 
 ---
 
 ## Features
 
-* Sync games from Lichess by username
+* Sync games from **Lichess** and **Chess.com** simultaneously
 * Two saving modes: single file or separate file per day
 * Incremental sync — only new games are fetched each time
-* Optional prefix before each game: date and/or rating change
-* Frontmatter with daily statistics (wins, losses, draws, win rate, etc.) — available in daily mode only
+* Optional prefix before each game: date and/or rating change (rating change — Lichess only)
+* Frontmatter with combined daily statistics (wins, losses, draws, win rate, etc.) — available in daily mode only
 * Automatic creation of folders and files
 * Settings with collapsible sections
 
@@ -27,7 +28,7 @@ A plugin for Obsidian that syncs your chess games from Lichess directly into you
    npm install
    npm run build
    ```
-3. Copy the following three files into your vault’s plugin folder:
+3. Copy the following three files into your vault's plugin folder:
 
    ```
    vault/
@@ -50,12 +51,15 @@ A plugin for Obsidian that syncs your chess games from Lichess directly into you
 
 Open **Settings → Obsidian Chess Vault** and fill in:
 
-| Field            | Description                          |
-| ---------------- | ------------------------------------ |
-| Lichess Username | Your username on lichess.org         |
-| Save Mode        | Single file or separate file per day |
-| Games File       | Path to file (single file mode)      |
-| Games Folder     | Folder for daily files (daily mode)  |
+| Field              | Description                          |
+| ------------------ | ------------------------------------ |
+| Chess.com Username | Your username on chess.com           |
+| Lichess Username   | Your username on lichess.org         |
+| Save Mode          | Single file or separate file per day |
+| Games File         | Path to file (single file mode)      |
+| Games Folder       | Folder for daily files (daily mode)  |
+
+You can fill in one or both usernames — the plugin will only fetch from services where a username is provided.
 
 ---
 
@@ -64,7 +68,7 @@ Open **Settings → Obsidian Chess Vault** and fill in:
 Open the Command Palette (`Ctrl+P` / `Cmd+P`) and select:
 
 ```
-Sync games from Lichess
+Sync games
 ```
 
 Or assign a hotkey in **Settings → Hotkeys**.
@@ -75,42 +79,48 @@ Or assign a hotkey in **Settings → Hotkeys**.
 
 ### Single File
 
-All games are appended to the end of one selected file.
+All games are appended to the end of one selected file — first Lichess games, then Chess.com games.
 
 ### Daily Files
 
 A separate file is created for each day in the selected folder.
 File name format: `YYYY-MM-DD.md`, for example `2026-04-25.md`.
 
-Each file starts with frontmatter containing daily statistics:
+Each file starts with frontmatter containing **combined** daily statistics from both platforms:
 
 ```yaml
 ---
 date: 2026-04-25
-games: 4
-wins: 3
+games: 6
+wins: 4
 defeats: 1
-draws: 0
-win_rate: 75%
+draws: 1
+win_rate: 67%
 ---
 ```
 
 The set of fields can be configured in the **📊 File Properties (frontmatter)** section.
 
+Lichess games are shown as embedded boards. Chess.com games are shown as links (Chess.com does not support public iframe embedding):
+
+```
+[♟ Chess.com — открыть партию](https://www.chess.com/game/live/uuid)
+```
+
 ---
 
 ## Prefix Settings
 
-In the section **⚙️ What to show before each game**, you can enable:
+In the section **⚙️ Show before each game**, you can enable:
 
-* **Game Date** — start time of the game
-* **Rating Change** — rating difference after the game
+* **Game Date** — end time of the game (both platforms)
+* **Rating Diff** — rating change after the game *(Lichess only)*
 
-Example with both enabled:
+Example with both enabled (Lichess):
 
 ```
 > 📅 25.04.2026, 19:58:00
-> 📈 RatingDiff: `+5`
+> 📈 Rating diff: `+5`
 <iframe ...></iframe>
 ```
 
@@ -133,11 +143,12 @@ The settings display the date of the last sync. Reset options:
 
 ```
 src/
-├── main.ts          — main plugin class, settings UI
-├── lichgame.ts      — Lichess API requests
-└── obrab_games.ts   — game processing, statistics
-data.json            — saved plugin settings
-manifest.json        — plugin metadata
+├── main.ts           — main plugin class, settings UI
+├── lichgame.ts       — Lichess API requests
+├── chesscomgames.ts  — Chess.com API requests
+└── obrab_games.ts    — game processing, statistics
+data.json             — saved plugin settings
+manifest.json         — plugin metadata
 ```
 
 ---
@@ -156,8 +167,5 @@ npm run build     # production build
 
 * Obsidian 0.15.0+
 * Node.js 18+ (for building)
-* Lichess account
-
----
-
-
+* Lichess and/or Chess.com account
+```
