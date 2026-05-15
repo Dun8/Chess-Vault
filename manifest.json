@@ -1,9 +1,9 @@
 {
   "id": "chess-vault",
   "name": "Chess Vault",
-  "description": "Sync your Lichess games!",
+  "description": "Sync your Lichess/Chess.com games!",
   "author": "Dun",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "minAppVersion": "0.15.0",
   "isDesktopOnly": false
 }
